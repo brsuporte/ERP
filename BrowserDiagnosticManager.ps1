@@ -1705,6 +1705,20 @@ function Initialize-Window {
     $script:Window  = [System.Windows.Markup.XamlReader]::Load($reader)
     $script:LogTextBox = $script:Window.FindName('txtLogs')
 
+    #-- Handler global de exceções não tratadas (evita fechamento inesperado) --
+    $script:Window.Dispatcher.Add_UnhandledException({
+        param($eventSender, $e)
+        try {
+            Write-AppLog "Exceção não tratada: $($e.Exception.Message)" -Level ERROR
+        } catch { }
+        [System.Windows.MessageBox]::Show(
+            "Ocorreu um erro na operação, mas o aplicativo continuará em execução:`n`n$($e.Exception.Message)",
+            "Aviso",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Warning) | Out-Null
+        $e.Handled = $true
+    })
+
     #-- Navegação --
     $script:Window.FindName('btnNavDashboard').Add_Click({
         Show-Panel 'panelDashboard'; Update-Dashboard
@@ -2033,9 +2047,11 @@ function Initialize-Window {
 
     #-- Configurações --
     $script:Window.FindName('btnSaveConfig').Add_Click({
+        $themeItem = $script:Window.FindName('cmbTheme').SelectedItem
+        $langItem  = $script:Window.FindName('cmbLanguage').SelectedItem
         $cfg = @{
-            Theme       = $script:Window.FindName('cmbTheme').SelectedItem.Content
-            Language    = $script:Window.FindName('cmbLanguage').SelectedItem.Content
+            Theme       = if ($themeItem) { [string]$themeItem.Content } else { "Dark" }
+            Language    = if ($langItem)  { [string]$langItem.Content }  else { "pt-BR" }
             AutoRefresh = [bool]$script:Window.FindName('chkAutoRefresh').IsChecked
             BaseDir     = $script:Window.FindName('txtBaseDir').Text
             Version     = $script:Version
