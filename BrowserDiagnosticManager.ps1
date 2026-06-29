@@ -1324,6 +1324,10 @@ function Stop-Atendimento {
                   <Button x:Name="btnChromeHistory"    Content="📜  chrome://history"     Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
                   <Button x:Name="btnChromeDownloads"  Content="⬇  chrome://downloads"   Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
                   <Button x:Name="btnChromeVersion"    Content="ℹ  chrome://version"     Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
+                  <Separator Background="#45475A" Margin="0,8"/>
+                  <Button x:Name="btnExportPasswords" Content="🔑  Exportar Senhas (CSV)" Style="{StaticResource SuccessBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
+                  <TextBlock Foreground="#6C7086" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="230"
+                             Text="Abre o gerenciador de senhas do Chrome. Clique no menu (⋮) → Exportar senhas. O Windows pedirá sua autenticação e gerará o arquivo CSV."/>
                 </StackPanel>
               </Border>
             </Grid>
@@ -1909,6 +1913,25 @@ function Initialize-Window {
     $script:Window.FindName('btnChromeVersion').Add_Click({
         $cp = Get-ChromeInstallPath
         if ($cp) { Start-Process $cp "chrome://version" } else { [System.Windows.MessageBox]::Show("Chrome não encontrado.") }
+    })
+    $script:Window.FindName('btnExportPasswords').Add_Click({
+        $cp = Get-ChromeInstallPath
+        if (-not $cp) {
+            [System.Windows.MessageBox]::Show("Chrome não encontrado.","Aviso")
+            return
+        }
+        Start-Process $cp "chrome://password-manager/passwords"
+        Write-AppLog "Gerenciador de senhas do Chrome aberto para exportação CSV" -Level INFO
+        [System.Windows.MessageBox]::Show(
+            "O gerenciador de senhas do Chrome foi aberto.`n`n" +
+            "Para exportar:`n" +
+            "1. Clique no menu (tres pontos ⋮) ao lado de 'Senhas'.`n" +
+            "2. Escolha 'Exportar senhas...'.`n" +
+            "3. Confirme com sua autenticação do Windows.`n" +
+            "4. Salve o arquivo CSV no local desejado.`n`n" +
+            "Observação: por segurança, o Chrome exige autenticação manual " +
+            "do Windows e não permite exportação totalmente automatizada.",
+            "Exportar Senhas do Chrome")
     })
 
     #-- Configurações --
