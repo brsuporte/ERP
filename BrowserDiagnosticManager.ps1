@@ -233,7 +233,7 @@ function Get-ChromeProcessInfo {
     $procs = Get-Process -Name chrome -ErrorAction SilentlyContinue
     if (-not $procs) { return @{ Count = 0; RAM = 0; CPU = 0 } }
     return @{
-        Count = $procs.Count
+        Count = @($procs).Count
         RAM   = [math]::Round(($procs | Measure-Object WorkingSet64 -Sum).Sum / 1MB, 1)
         CPU   = [math]::Round(($procs | Measure-Object CPU -Sum).Sum, 1)
     }
@@ -273,11 +273,11 @@ function Get-ChromeFullInfo {
         Path       = $path
         Version    = if ($path) { Get-ChromeVersion $path } else { "N/A" }
         ProfilePath= $profilePath
-        Profiles   = $profiles
-        ProfileCount = $profiles.Count
-        Processes  = $procs.Count
-        RAM        = $procs.RAM
-        CPU        = $procs.CPU
+        Profiles   = @($profiles)
+        ProfileCount = @($profiles).Count
+        Processes  = $procs['Count']
+        RAM        = $procs['RAM']
+        CPU        = $procs['CPU']
         CacheMB    = $cacheMB
         ProfileMB  = $profileMB
     }
@@ -298,7 +298,7 @@ function Invoke-ChromeDiagnostics {
 
     # Chrome instalado
     $chromePath = Get-ChromeInstallPath
-    & $add "Chrome Instalado" (if ($chromePath) { "OK" } else { "FALHA" }) (if ($chromePath) { $chromePath } else { "Chrome não encontrado no sistema" })
+    & $add "Chrome Instalado" $(if ($chromePath) { "OK" } else { "FALHA" }) $(if ($chromePath) { $chromePath } else { "Chrome não encontrado no sistema" })
 
     # Versão do Chrome
     if ($chromePath) {
@@ -308,7 +308,7 @@ function Invoke-ChromeDiagnostics {
 
     # Perfil localizado
     $profilePath = Get-ChromeProfilePath
-    & $add "Perfil Localizado" (if (Test-Path $profilePath) { "OK" } else { "FALHA" }) $profilePath
+    & $add "Perfil Localizado" $(if (Test-Path $profilePath) { "OK" } else { "FALHA" }) $profilePath
 
     # Cache excessivo
     $cachePath = Join-Path $profilePath "Default\Cache"
@@ -319,22 +319,22 @@ function Invoke-ChromeDiagnostics {
     # Histórico
     $histFile = Join-Path $profilePath "Default\History"
     $histMB   = if (Test-Path $histFile) { [math]::Round((Get-Item $histFile).Length / 1MB, 2) } else { 0 }
-    & $add "Histórico de Navegação" (if ($histMB -gt 100) { "AVISO" } else { "OK" }) "$histMB MB"
+    & $add "Histórico de Navegação" $(if ($histMB -gt 100) { "AVISO" } else { "OK" }) "$histMB MB"
 
     # Extensões
     $extPath  = Join-Path $profilePath "Default\Extensions"
-    $extCount = if (Test-Path $extPath) { (Get-ChildItem $extPath -Directory -ErrorAction SilentlyContinue).Count } else { 0 }
-    & $add "Extensões Instaladas" (if ($extCount -gt 20) { "AVISO" } else { "OK" }) "$extCount extensões"
+    $extCount = if (Test-Path $extPath) { @(Get-ChildItem $extPath -Directory -ErrorAction SilentlyContinue).Count } else { 0 }
+    & $add "Extensões Instaladas" $(if ($extCount -gt 20) { "AVISO" } else { "OK" }) "$extCount extensões"
 
     # Processos do Chrome
     $procs = Get-Process chrome -ErrorAction SilentlyContinue
-    $procCount = if ($procs) { $procs.Count } else { 0 }
-    & $add "Processos Chrome" (if ($procCount -gt 25) { "AVISO" } else { "OK" }) "$procCount processos em execução"
+    $procCount = @($procs).Count
+    & $add "Processos Chrome" $(if ($procCount -gt 25) { "AVISO" } else { "OK" }) "$procCount processos em execução"
 
     # Conectividade
     $internet = $false
     try { $internet = (Test-Connection "8.8.8.8" -Count 1 -Quiet -ErrorAction SilentlyContinue) } catch { }
-    & $add "Conectividade Internet" (if ($internet) { "OK" } else { "FALHA" }) (if ($internet) { "Conectado (DNS Google)" } else { "Sem conexão detectada" })
+    & $add "Conectividade Internet" $(if ($internet) { "OK" } else { "FALHA" }) $(if ($internet) { "Conectado (DNS Google)" } else { "Sem conexão detectada" })
 
     # Espaço em disco
     try {
@@ -1528,6 +1528,7 @@ function Update-Dashboard {
 function Show-AtendimentoDialog {
     [xml]$dlgXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Iniciar Atendimento" Height="430" Width="480"
         WindowStartupLocation="CenterOwner" Background="#1E1E2E"
         ResizeMode="NoResize">
