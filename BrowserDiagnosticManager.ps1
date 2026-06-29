@@ -563,7 +563,8 @@ function New-ChromeBackup {
         [bool]$History    = $false,
         [bool]$Cookies    = $false,
         [bool]$Settings   = $true,
-        [bool]$Extensions = $false
+        [bool]$Extensions = $false,
+        [bool]$Passwords  = $false
     )
 
     $ts        = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -579,6 +580,7 @@ function New-ChromeBackup {
         Cookies    = @('Default\Cookies', 'Default\Network\Cookies')
         Settings   = @('Default\Preferences', 'Default\Secure Preferences')
         Extensions = @('Default\Extensions', 'Default\Local Extension Settings')
+        Passwords  = @('Default\Login Data', 'Default\Login Data For Account')
     }
 
     $selected = [ordered]@{}
@@ -587,6 +589,7 @@ function New-ChromeBackup {
     if ($Cookies)    { $selected['Cookies']    = $map.Cookies    }
     if ($Settings)   { $selected['Settings']   = $map.Settings   }
     if ($Extensions) { $selected['Extensions'] = $map.Extensions }
+    if ($Passwords)  { $selected['Passwords']  = $map.Passwords  }
 
     foreach ($cat in $selected.Keys) {
         $catDir = "$backupDir\$cat"
@@ -628,6 +631,7 @@ function New-ChromeBackup {
         Favoritos = if ($Bookmarks) { "Incluído" } else { "Não incluído" }
         Historico = if ($History)   { "Incluído" } else { "Não incluído" }
         Extensoes = if ($Extensions){ "Incluído" } else { "Não incluído" }
+        Senhas    = if ($Passwords) { "Incluído" } else { "Não incluído" }
         Date      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
     }
     $inventory | ConvertTo-Json -Depth 5 | Set-Content "$backupDir\Inventario.json" -Encoding UTF8
@@ -1249,6 +1253,11 @@ function Stop-Atendimento {
                   <CheckBox x:Name="chkBkpCookies"    Content="Cookies"       Style="{StaticResource ChkStyle}"/>
                   <CheckBox x:Name="chkBkpSettings"   Content="Configurações" Style="{StaticResource ChkStyle}" IsChecked="True"/>
                   <CheckBox x:Name="chkBkpExtensions" Content="Extensões"     Style="{StaticResource ChkStyle}"/>
+                  <CheckBox x:Name="chkBkpPasswords"  Content="Senhas salvas (Login Data)" Style="{StaticResource ChkStyle}"/>
+                  <Border Background="#2A2010" CornerRadius="6" Padding="10,8" Margin="0,8,0,0">
+                    <TextBlock Foreground="#F9E2AF" FontSize="11" TextWrapping="Wrap"
+                               Text="⚠ As senhas ficam criptografadas pelo Windows (DPAPI) e só podem ser restauradas no mesmo computador e conta de usuário. Para a restauração funcionar, o Chrome deve estar fechado."/>
+                  </Border>
                   <Button x:Name="btnCreateBackup" Content="💾  Criar Backup Agora"
                           Style="{StaticResource PrimaryBtn}" HorizontalAlignment="Left"
                           Margin="0,16,0,0" Width="190"/>
@@ -1794,7 +1803,8 @@ function Initialize-Window {
                 -History    ([bool]$script:Window.FindName('chkBkpHistory').IsChecked)    `
                 -Cookies    ([bool]$script:Window.FindName('chkBkpCookies').IsChecked)    `
                 -Settings   ([bool]$script:Window.FindName('chkBkpSettings').IsChecked)   `
-                -Extensions ([bool]$script:Window.FindName('chkBkpExtensions').IsChecked)
+                -Extensions ([bool]$script:Window.FindName('chkBkpExtensions').IsChecked) `
+                -Passwords  ([bool]$script:Window.FindName('chkBkpPasswords').IsChecked)
 
             $lbl = $script:Window.FindName('lblBackupResult')
             $lbl.Text       = "✔ Backup criado: $bkDir"
@@ -1836,8 +1846,10 @@ function Initialize-Window {
             $bkPath      = $sel.Path
 
             $itemMap = @{
-                'Bookmarks\Bookmarks'   = 'Default\Bookmarks'
-                'Settings\Preferences'  = 'Default\Preferences'
+                'Bookmarks\Bookmarks'              = 'Default\Bookmarks'
+                'Settings\Preferences'             = 'Default\Preferences'
+                'Passwords\Login Data'             = 'Default\Login Data'
+                'Passwords\Login Data For Account' = 'Default\Login Data For Account'
             }
             foreach ($src in $itemMap.Keys) {
                 $srcFull = Join-Path $bkPath $src
