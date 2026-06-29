@@ -658,6 +658,88 @@ function Get-BackupList {
         }
     })
 }
+
+function ConvertTo-BookmarkHtmlNode {
+    <#
+    .SYNOPSIS
+        Converte recursivamente um nó de favoritos do Chrome em HTML (formato Netscape).
+    #>
+    param($Node, [int]$Indent = 1)
+
+    $sb  = [System.Text.StringBuilder]::new()
+    $pad = "    " * $Indent
+
+    foreach ($child in @($Node.children)) {
+        if ($child.type -eq 'folder') {
+            $name = [System.Web.HttpUtility]::HtmlEncode($child.name)
+            [void]$sb.AppendLine("$pad<DT><H3>$name</H3>")
+            [void]$sb.AppendLine("$pad<DL><p>")
+            [void]$sb.Append((ConvertTo-BookmarkHtmlNode -Node $child -Indent ($Indent + 1)))
+            [void]$sb.AppendLine("$pad</DL><p>")
+        } elseif ($child.type -eq 'url') {
+            $name = [System.Web.HttpUtility]::HtmlEncode($child.name)
+            $url  = [System.Web.HttpUtility]::HtmlAttributeEncode($child.url)
+            [void]$sb.AppendLine("$pad<DT><A HREF=`"$url`">$name</A>")
+        }
+    }
+    return $sb.ToString()
+}
+
+function Export-ChromeBookmarks {
+    <#
+    .SYNOPSIS
+        Exporta os favoritos do Chrome para um arquivo HTML padrão (Netscape).
+    .DESCRIPTION
+        Lê o arquivo Bookmarks (JSON) do perfil e gera um HTML compatível
+        com Chrome, Edge e Firefox. Retorna o caminho do arquivo gerado.
+    #>
+    [CmdletBinding()]
+    param([string]$OutputPath)
+
+    Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
+
+    $profilePath  = Get-ChromeProfilePath
+    $bookmarkFile = Join-Path $profilePath "Default\Bookmarks"
+    if (-not (Test-Path $bookmarkFile)) {
+        throw "Arquivo de favoritos não encontrado em: $bookmarkFile"
+    }
+
+    $data = Get-Content $bookmarkFile -Raw -Encoding UTF8 | ConvertFrom-Json
+
+    $body = [System.Text.StringBuilder]::new()
+    $rootOrder = @(
+        @{ Key = 'bookmark_bar'; Title = 'Barra de favoritos' },
+        @{ Key = 'other';        Title = 'Outros favoritos'   },
+        @{ Key = 'synced';       Title = 'Favoritos móveis'   }
+    )
+    foreach ($root in $rootOrder) {
+        $node = $data.roots.$($root.Key)
+        if ($node -and $node.children) {
+            [void]$body.AppendLine("    <DT><H3>$($root.Title)</H3>")
+            [void]$body.AppendLine("    <DL><p>")
+            [void]$body.Append((ConvertTo-BookmarkHtmlNode -Node $node -Indent 2))
+            [void]$body.AppendLine("    </DL><p>")
+        }
+    }
+
+    $html = @"
+<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- Exportado por $($script:AppName) - $($script:Company) -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+$($body.ToString())</DL><p>
+"@
+
+    if (-not $OutputPath) {
+        $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
+        $OutputPath = "$($script:Dirs.Relatorios)\Favoritos_$ts.html"
+    }
+    $html | Set-Content -Path $OutputPath -Encoding UTF8
+    Write-AppLog "Favoritos exportados para: $OutputPath" -Level INFO
+    return $OutputPath
+}
 #endregion
 
 #region === CDP - GERENCIAMENTO DE ABAS ===
@@ -1325,9 +1407,10 @@ function Stop-Atendimento {
                   <Button x:Name="btnChromeDownloads"  Content="⬇  chrome://downloads"   Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
                   <Button x:Name="btnChromeVersion"    Content="ℹ  chrome://version"     Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
                   <Separator Background="#45475A" Margin="0,8"/>
+                  <Button x:Name="btnExportBookmarks" Content="⭐  Exportar Favoritos (HTML)" Style="{StaticResource SuccessBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
                   <Button x:Name="btnExportPasswords" Content="🔑  Exportar Senhas (CSV)" Style="{StaticResource SuccessBtn}" HorizontalAlignment="Left" Margin="0,4" Width="220"/>
                   <TextBlock Foreground="#6C7086" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="230"
-                             Text="Abre o gerenciador de senhas do Chrome. Clique no menu (⋮) → Exportar senhas. O Windows pedirá sua autenticação e gerará o arquivo CSV."/>
+                             Text="Favoritos: gerados automaticamente em HTML (importável no Chrome/Edge/Firefox). Senhas: abre o gerenciador do Chrome para exportar o CSV com autenticação do Windows."/>
                 </StackPanel>
               </Border>
             </Grid>
@@ -1913,6 +1996,20 @@ function Initialize-Window {
     $script:Window.FindName('btnChromeVersion').Add_Click({
         $cp = Get-ChromeInstallPath
         if ($cp) { Start-Process $cp "chrome://version" } else { [System.Windows.MessageBox]::Show("Chrome não encontrado.") }
+    })
+    $script:Window.FindName('btnExportBookmarks').Add_Click({
+        try {
+            $file = Export-ChromeBookmarks
+            $r = [System.Windows.MessageBox]::Show(
+                "Favoritos exportados com sucesso!`n`n$file`n`nDeseja abrir o arquivo agora?",
+                "Exportar Favoritos",
+                [System.Windows.MessageBoxButton]::YesNo,
+                [System.Windows.MessageBoxImage]::Information)
+            if ($r -eq [System.Windows.MessageBoxResult]::Yes) { Start-Process $file }
+        } catch {
+            Write-AppLog "Erro ao exportar favoritos: $_" -Level ERROR
+            [System.Windows.MessageBox]::Show("Erro ao exportar favoritos:`n$_", "Erro")
+        }
     })
     $script:Window.FindName('btnExportPasswords').Add_Click({
         $cp = Get-ChromeInstallPath
