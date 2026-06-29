@@ -1510,7 +1510,7 @@ function Update-Dashboard {
 
                 $elapsed = (Get-Date) - $script:StartTime
                 $script:Window.FindName('lblRuntime').Text     = $elapsed.ToString('hh\:mm\:ss')
-                $script:Window.FindName('listProfiles').ItemsSource = $info.Profiles
+                $script:Window.FindName('listProfiles').ItemsSource = @($info.Profiles)
                 $script:Window.FindName('lblLastUpdate').Text  = "Última atualização: $(Get-Date -Format 'HH:mm:ss')"
 
                 $script:Window.FindName('sbChrome').Text  = "Chrome: $(if($info.Installed){'OK'}else{'Ausente'})"
@@ -1625,7 +1625,7 @@ function Initialize-Window {
     $script:Window.FindName('btnNavBackup').Add_Click({
         Show-Panel 'panelBackup'
         $bks = Get-BackupList
-        $script:Window.FindName('listBackups').ItemsSource = $bks
+        $script:Window.FindName('listBackups').ItemsSource = @($bks)
     })
     $script:Window.FindName('btnNavFerramentas').Add_Click({
         Show-Panel 'panelFerramentas'
@@ -1701,7 +1701,7 @@ function Initialize-Window {
             $items = $tabs | ForEach-Object {
                 $_ | Add-Member -NotePropertyName 'Selected' -NotePropertyValue $false -Force -PassThru
             }
-            $grid.ItemsSource = $items
+            $grid.ItemsSource = @($items)
             Write-AppLog "Abas listadas via CDP: $($tabs.Count)" -Level INFO
         }
     })
@@ -1730,7 +1730,7 @@ function Initialize-Window {
             $items = $tabs | ForEach-Object {
                 $_ | Add-Member -NotePropertyName 'Selected' -NotePropertyValue $false -Force -PassThru
             }
-            $grid.ItemsSource = $items
+            $grid.ItemsSource = @($items)
         }
     })
 
@@ -1802,7 +1802,7 @@ function Initialize-Window {
             [System.Windows.MessageBox]::Show("Backup criado com sucesso!`n$bkDir", "Backup Concluído")
 
             $bks = Get-BackupList
-            $script:Window.FindName('listBackups').ItemsSource = $bks
+            $script:Window.FindName('listBackups').ItemsSource = @($bks)
         } catch {
             Write-AppLog "Erro ao criar backup: $_" -Level ERROR
             $lbl = $script:Window.FindName('lblBackupResult')
@@ -1815,7 +1815,7 @@ function Initialize-Window {
     })
 
     $script:Window.FindName('btnRefreshBackups').Add_Click({
-        $script:Window.FindName('listBackups').ItemsSource = Get-BackupList
+        $script:Window.FindName('listBackups').ItemsSource = @(Get-BackupList)
     })
 
     $script:Window.FindName('btnRestoreBackup').Add_Click({
