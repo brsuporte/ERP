@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Browser Diagnostic Manager - BR Suporte Informática
 .DESCRIPTION
@@ -468,7 +468,7 @@ function Invoke-ChromeCleanup {
                         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
                     $sizeAfter = Get-FolderSizeMB $cp
                     $freed = [math]::Round($sizeBefore - $sizeAfter, 1)
-                    $results.Add("Cache limpo: $(Split-Path $cp -Leaf) — liberados $freed MB")
+                    $results.Add("Cache limpo: $(Split-Path $cp -Leaf) - liberados $freed MB")
                     Write-AppLog "Cache limpo: $cp ($freed MB liberados)" -Level INFO
                 } catch {
                     Write-AppLog "Erro ao limpar cache $cp`: $_" -Level ERROR
