@@ -115,7 +115,13 @@ function Write-AppLog {
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     $line = "$timestamp [$Level] $Message"
 
-    try { Add-Content -Path $script:LogFile -Value $line -Encoding UTF8 } catch { }
+    try {
+        $logDir = Split-Path $script:LogFile -Parent
+        if (-not (Test-Path $logDir)) {
+            New-Item -ItemType Directory -Path $logDir -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        Add-Content -Path $script:LogFile -Value $line -Encoding UTF8 -ErrorAction SilentlyContinue
+    } catch { }
 
     if ($script:LogTextBox -and $script:Window) {
         try {
@@ -1984,13 +1990,14 @@ function Main {
         Ponto de entrada principal da aplicação.
     #>
     try {
+        # Cria a estrutura de diretórios ANTES de qualquer operação de log
+        Initialize-AppStructure
+
         Write-AppLog "=====================================================" -Level INFO
         Write-AppLog "$($script:AppName) v$($script:Version) — $($script:Company)" -Level INFO
         Write-AppLog "Build $($script:Build) | $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Level INFO
         Write-AppLog "Computador: $env:COMPUTERNAME | Usuário: $env:USERNAME" -Level INFO
         Write-AppLog "=====================================================" -Level INFO
-
-        Initialize-AppStructure
         Write-AppLog "Estrutura de diretórios verificada em: $script:BaseDir" -Level INFO
 
         $script:Config = Get-AppConfig
